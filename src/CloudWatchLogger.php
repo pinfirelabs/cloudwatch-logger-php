@@ -91,7 +91,23 @@ class CloudWatchLogger
             return $this->retryLoggingAfterError($e, $data);
         }
     }
-    
+
+	/**
+     * Log multiple messages to CloudWatch
+     * 
+     * @param array $messages
+     * 
+     * @return Result
+     */
+    public function logMultiple(array $messages)
+    {
+        try {
+            $result = $this->client->logMultiple($messages, $this->config->group_name, $this->config->stream_name, $this->config->options);
+            return $result;
+        } catch (CloudWatchLogsException $e) {
+            return $this->retryLoggingAfterError($e, $messages);
+        }
+    }   
     /**
      * Retry logging after getting an error, for example invalid sequence token message
      * CloudWatch handles concurrent/simultaneous requests poorly

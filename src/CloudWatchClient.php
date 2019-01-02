@@ -78,22 +78,41 @@ class CloudWatchClient
      * @return Result
      */
     public function log($data, $group, $stream, $options = null)
-    {
+	{
+		return $this->logMultiple([$data], $group, $stream, $options);
+    }
+
+    /**
+     * Log data in CloudWatch
+     * Will automatically create missing groups and streams as needed
+     * This is the recommended function to log data as it keeps track of sequence tokens
+     * 
+     * @param array               $data messages to log
+     * @param string              $group
+     * @param string              $stream
+     * @param array|object        $options ['retention_days' => 90]
+     * 
+     * @return Result
+	 */
+	public function logMultiple(array $data, $group, $stream, $options = null)
+	{
         if (!isset($this->sequence_token)) {
             $created = $this->createGroupAndStream($group, $stream, $options);
             if (isset($created['stream']) && isset($created['stream']['uploadSequenceToken'])) {
                 $this->sequence_token = $created['stream']['uploadSequenceToken'];
             }
         }
-        
-        $message = $data;
-        
-        if (is_array($data) || is_object($data)) {
-            // can only log strings to CloudWatch
-            $message = json_encode((array)$data);
-        }
-        
-        $events = [['message' => $message, 'timestamp' => time() * 1000]];
+
+		$events = [];	
+		foreach ($data as $message)
+		{
+			if (is_array($message) || is_object($message)) {
+	            // can only log strings to CloudWatch
+    	        $message = json_encode((array)$message);
+			}
+
+			$events[] = ['message' => $message, 'timestamp' => time() * 1000];
+		}
         
         try {
             $result = $this->putLogEvents($events, $group, $stream, $this->sequence_token);
@@ -107,7 +126,7 @@ class CloudWatchClient
         
         return $result;
     }
-    
+
     /**
      * Create group and stream if they didn't exist yet
      * 
